@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework import permissions
 from rest_framework import viewsets
-from .models import Hotel,Restaurant,Activity,Museum,ArchaeologicalSite,Festival,GuestHouse,Destination,Review
-from .serializers import HotelSerializer,RestaurantSerializer,ActivitySerializer,MuseumSerializer,ArchaeologicalSiteSerializer,FestivalSerializer,GuestHouseSerializer,DestinationSerializer,ReviewSerializer
+from .models import Hotel,Restaurant,Activity,Museum,ArchaeologicalSite,Festival,GuestHouse,Destination,Review,Favorite
+from .serializers import HotelSerializer,RestaurantSerializer,ActivitySerializer,MuseumSerializer,ArchaeologicalSiteSerializer,FestivalSerializer,GuestHouseSerializer,DestinationSerializer,ReviewSerializer,FavoriteSerializer
 from users.permissions import IsAdmin,IsReviewOwnerOrAdmin
 from django.db.models import Q
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -10,6 +10,9 @@ from rest_framework.permissions import SAFE_METHODS
 from rest_framework import status
 from rest_framework.response import Response
 from django.utils import timezone
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -347,4 +350,41 @@ class ReviewViewSet(viewsets.ModelViewSet):
             )
 
         serializer.save(user=user)
+
+
+
+
+class FavoriteViewSet(viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = FavoriteSerializer
+
+    def get_queryset(self):
+        # Only return favorites for the authenticated user
+        return Favorite.objects.filter(user=self.request.user)
+
+    @action(detail=False, methods=['post'])
+    def add_to_favorite(self, request):
+        entity_type = request.data.get('entity_type')
+        entity_id = request.data.get('entity_id')
+
+        # Check if the favorite already exists
+        if Favorite.objects.filter(user=request.user, entity_type=entity_type, entity_id=entity_id).exists():
+            return Response({'error': 'This item is already in your favorites.'}, status=400)
+
+        # Create the favorite entry
+        Favorite.objects.create(user=request.user, entity_type=entity_type, entity_id=entity_id)
+        return Response({'message': 'Item added to favorites successfully!'}, status=201)
+
+    @action(detail=False, methods=['post'])
+    def remove_from_favorite(self, request):
+        entity_type = request.data.get('entity_type')
+        entity_id = request.data.get('entity_id')
+
+        try:
+            # Find and delete the favorite entry
+            favorite = Favorite.objects.get(user=request.user, entity_type=entity_type, entity_id=entity_id)
+            favorite.delete()
+            return Response({'message': 'Item removed from favorites successfully!'}, status=200)
+        except Favorite.DoesNotExist:
+            return Response({'error': 'This item is not in your favorites.'}, status=404)
 

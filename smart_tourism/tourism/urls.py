@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RestaurantViewSet, HotelViewSet, ActivityViewSet,ArchaeologicalSiteViewSet,DestinationViewSet,MuseumViewSet,FestivalViewSet,GuestHouseViewSet,ReviewViewSet
+from .views import RestaurantViewSet, HotelViewSet, ActivityViewSet,ArchaeologicalSiteViewSet,DestinationViewSet,MuseumViewSet,FestivalViewSet,GuestHouseViewSet,ReviewViewSet,FavoriteViewSet
 
 # Create a router and register the endpoints
 router = DefaultRouter()
@@ -13,6 +13,7 @@ router.register(r'festivals', FestivalViewSet, basename='festival')
 router.register(r'museums', MuseumViewSet, basename='museum')
 router.register(r'guest_houses', GuestHouseViewSet, basename='guest_house')
 router.register(r'reviews', ReviewViewSet, basename='review')
+router.register(r'favorites', FavoriteViewSet, basename='favorite')
 
 
 

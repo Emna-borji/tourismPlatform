@@ -17,8 +17,8 @@ from .serializers import UpdateProfileSerializer
 from .serializers import ChangePasswordSerializer
 from rest_framework import viewsets
 from rest_framework.decorators import action
-
-
+from rest_framework.views import APIView
+from users.models import ClickHistory
 
 
 
@@ -185,6 +185,25 @@ def logout(request):
     # response.delete_cookie('access_token')   # If JWT is stored in a cookie
     
     return response
+
+
+
+
+class TrackClickView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        entity_type = request.data.get('entity_type')
+        entity_id = request.data.get('entity_id')
+
+        # Check if the user has recently clicked the same entity
+        if ClickHistory.user_recently_clicked(user, entity_type, entity_id):
+            return Response({"message": "Click already recorded recently."}, status=200)
+
+        # Save the click if it's a new one
+        ClickHistory.objects.create(user=user, entity_type=entity_type, entity_id=entity_id)
+        return Response({"message": "Click recorded successfully!"}, status=201)
 
 
 

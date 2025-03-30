@@ -270,8 +270,15 @@ class Festival(models.Model):
 
 
 class GuestHouse(models.Model):
+    CATEGORY_CHOICES = [
+        ('Basique', 'Basique'),
+        ('Standard', 'Standard'),
+        ('Premium', 'Premium'),
+        ('Luxe', 'Luxe'),
+    ]
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255, null=True, blank=True)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='Standard')
     description = models.TextField(null=True, blank=True)
     phone = models.CharField(max_length=50, null=True, blank=True)
     email = models.EmailField(max_length=100, null=True, blank=True)
@@ -503,4 +510,32 @@ class Review(models.Model):
     def __str__(self):
         return f"Review by {self.user.username} for {self.entity_type} #{self.entity_id}"
     
+
+
+class Favorite(models.Model):
+    # Choices for entity_type
+    ENTITY_TYPES = [
+        ('activity', 'Activity'),
+        ('museum', 'Museum'),
+        ('hotel', 'Hotel'),
+        ('restaurant', 'Restaurant'),
+        ('guest_house', 'Guest House'),
+        ('archaeological_site', 'Archaeological Site'),
+        ('festival', 'Festival'),
+    ]
+
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    entity_type = models.CharField(max_length=30, choices=ENTITY_TYPES)
+    entity_id = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'favorite'  # Explicitly set the table name
+        unique_together = ('user', 'entity_type', 'entity_id')  # Unique constraint
+        verbose_name = "Favorite"
+        verbose_name_plural = "Favorites"
+
+    def __str__(self):
+        return f"{self.user.username} favorite - {self.entity_type} {self.entity_id}"
     

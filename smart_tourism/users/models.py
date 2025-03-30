@@ -5,6 +5,8 @@ from django.utils import timezone
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from datetime import datetime, date
+from django.utils.timezone import now
+from datetime import timedelta
 
 
 
@@ -80,5 +82,32 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             end = timezone.make_aware(self.blockenddate, timezone.get_current_timezone()) if self.blockenddate.tzinfo is None else self.blockenddate
             return start <= now <= end
         return False
+    
+
+
+
+class ClickHistory(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    entity_type = models.CharField(max_length=50)
+    entity_id = models.IntegerField()
+    clicked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False  # Prevents Django from creating/modifying the table
+        db_table = "click_history"  # Matches the existing PostgreSQL table name
+
+    def __str__(self):
+        return f"{self.user} clicked on {self.entity_type} (ID: {self.entity_id})"
+    
+    @classmethod
+    def user_recently_clicked(cls, user, entity_type, entity_id, minutes=10):
+        """Check if the user has clicked on the same entity within the last X minutes."""
+        recent_time = now() - timedelta(minutes=minutes)
+        return cls.objects.filter(
+            user=user,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            clicked_at__gte=recent_time
+        ).exists()
 
     

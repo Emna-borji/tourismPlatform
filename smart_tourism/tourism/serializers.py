@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Hotel,Restaurant,Activity,Museum,ArchaeologicalSite,Festival,GuestHouse,Destination,Review
+from .models import Hotel,Restaurant,Activity,Museum,ArchaeologicalSite,Festival,GuestHouse,Destination,Review,Favorite
 
 class HotelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -53,3 +53,9 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'entity_type', 'entity_id', 'user', 'rating', 'comment', 'image', 'created_at', 'updated_at']
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favorite
+        fields = ['user', 'entity_type', 'entity_id', 'created_at', 'updated_at']

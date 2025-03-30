@@ -2,7 +2,7 @@ from django.urls import path, include
 from . import views  # Import the views you defined
 from rest_framework.routers import DefaultRouter
 from .views import UserViewSet
-
+from .views import TrackClickView
 
 
 # Create a router and register our viewset with it
@@ -18,4 +18,5 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
     path('users/', include(router.urls)),
     path("users/<int:pk>/block/", UserViewSet.as_view({"post": "block_user"})),
+    path('track-click/', TrackClickView.as_view(), name='track-click'),
 ]
