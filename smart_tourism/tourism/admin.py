@@ -42,12 +42,7 @@ class DestinationAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'latitude', 'longitude')
 
 
-@admin.register(Restaurant)
-class RestaurantAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'forks', 'category', 'price', 'latitude', 'longitude', 'destination')
 
 
 
-@admin.register(Activity)
-class ActivityAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'category', 'price', 'created_at', 'updated_at', 'destination')
+

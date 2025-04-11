@@ -18,7 +18,21 @@ from .serializers import ChangePasswordSerializer
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.views import APIView
-from users.models import ClickHistory
+from users.models import ClickHistory,SearchHistory
+from tourism.models import Restaurant
+from datetime import datetime
+from django.shortcuts import redirect
+from django.db.models import Q
+from .serializers import SearchHistoryInputSerializer
+from rest_framework.permissions import IsAuthenticated
+
+from rest_framework import viewsets, permissions
+from .models import Preference
+from .serializers import PreferenceSerializer
+from .permissions import IsAdminOrCreateOnly  # your custom permission
+
+
+
 
 
 
@@ -116,9 +130,12 @@ def login(request):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
+        user_data = CustomUserSerializer(user).data
+
         return Response({
             'access_token': access_token,
             'refresh_token': str(refresh),
+            'user': user_data,
         }, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -204,7 +221,77 @@ class TrackClickView(APIView):
         # Save the click if it's a new one
         ClickHistory.objects.create(user=user, entity_type=entity_type, entity_id=entity_id)
         return Response({"message": "Click recorded successfully!"}, status=201)
+    
+
+
+
+    
+
+class SaveSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = SearchHistoryInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        search_term = serializer.validated_data['q']
+        entity_type = serializer.validated_data['entity_type']
+
+        # Check for existing search history
+        if SearchHistory.objects.filter(user=request.user, entity_type=entity_type, search_term=search_term).exists():
+            return Response({'message': 'Search history already exists'}, status=status.HTTP_200_OK)
+
+        # Create new search history
+        SearchHistory.objects.create(
+            user=request.user,
+            entity_type=entity_type,
+            search_term=search_term
+        )
+
+        # Fetch matching search results
+        search_results = SearchHistory.objects.filter(
+            Q(entity_type=entity_type) & Q(search_term__icontains=search_term)
+        )
+
+        return Response({
+            'message': 'Search term saved successfully',
+            'search_results': [
+                {
+                    'search_term': result.search_term,
+                    'entity_type': result.entity_type,
+                    'searched_at': result.searched_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for result in search_results
+            ]
+        }, status=status.HTTP_200_OK)
+    
+
+
+# class PreferenceViewSet(viewsets.ModelViewSet):
+#     serializer_class = PreferenceSerializer
+#     permission_classes = [IsAdmin]
+
+#     def get_queryset(self):
+#         # Admin can see all preferences, users can see only their preferences
+#         if self.request.user.role == 'admin':
+#             return Preference.objects.all()
+#         return Preference.objects.filter(user=self.request.user)
+
+#     def perform_create(self, serializer):
+#         # Ensure the user is added to the preference
+#         serializer.save(user=self.request.user)
 
 
 
 
+
+class PreferenceViewSet(viewsets.ModelViewSet):
+    queryset = Preference.objects.all()
+    serializer_class = PreferenceSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrCreateOnly]
+
+    def get_queryset(self):
+        # Only admin can list all, others can't see any
+        if self.request.user.role=="admin":
+            return Preference.objects.all()
+        return Preference.objects.none()

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import permissions
 from rest_framework import viewsets
-from .models import Hotel,Restaurant,Activity,Museum,ArchaeologicalSite,Festival,GuestHouse,Destination,Review,Favorite
+from .models import Hotel,Restaurant,Activity,Museum,ArchaeologicalSite,Festival,GuestHouse,Destination,Review,Favorite,Equipment
 from .serializers import HotelSerializer,RestaurantSerializer,ActivitySerializer,MuseumSerializer,ArchaeologicalSiteSerializer,FestivalSerializer,GuestHouseSerializer,DestinationSerializer,ReviewSerializer,FavoriteSerializer
 from users.permissions import IsAdmin,IsReviewOwnerOrAdmin
 from django.db.models import Q
@@ -66,32 +66,127 @@ class HotelViewSet(viewsets.ModelViewSet):
 
         return queryset
     
+    def create(self, request, *args, **kwargs):
+        """
+        Custom create method to handle equipments.
+        """
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            # Handle the custom create logic in the serializer
+            self.perform_create(serializer)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Custom update method to handle equipments.
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def perform_create(self, serializer):
+        """
+        Custom create method to handle equipment assignment after saving guest house.
+        """
+        hotel = serializer.save()
+        equipment_ids = self.request.data.get('equipments', [])  # Get the list of equipment IDs
+
+        for equipment_id in equipment_ids:
+            try:
+                # Get the equipment by ID
+                equipment = Equipment.objects.get(id=equipment_id)
+                hotel.equipments.add(equipment)
+            except Equipment.DoesNotExist:
+                pass  # Handle if equipment doesn't exist, maybe return an error message or log it
+
+    def perform_update(self, serializer):
+        """
+        Custom update method to handle equipment assignment when updating guest house.
+        """
+        hotel = serializer.save()
+        equipment_ids = self.request.data.get('equipments', [])
+        hotel.equipments.clear()  # Clear existing equipment associations
+        for equipment_id in equipment_ids:
+            try:
+                equipment = Equipment.objects.get(id=equipment_id)
+                hotel.equipments.add(equipment)
+            except Equipment.DoesNotExist:
+                pass  # Handle if equipment doesn't exist, maybe return an error message
+    
+
+# class RestaurantViewSet(viewsets.ModelViewSet):
+#     queryset = Restaurant.objects.all()
+#     serializer_class = RestaurantSerializer
+
+#     def get_permissions(self):
+#         if self.action in ['list', 'retrieve']:  # Allow normal users to view
+#             return [permissions.AllowAny()]
+#         return [IsAdmin()]
+    
+#     def get_queryset(self):
+#         queryset = Restaurant.objects.all()
+        
+#         # Search by category, name, description
+#         search = self.request.query_params.get('search', None)
+#         if search:
+#             queryset = queryset.filter(
+#                 Q(name__icontains=search) | Q(description__icontains=search) | Q(category__icontains=search)
+#             )
+
+#         # Filter by forks (similar to stars)
+#         forks = self.request.query_params.get('forks', None)
+#         if forks:
+#             queryset = queryset.filter(forks=forks)
+
+#         # Sorting by price (asc or desc)
+#         sort_price = self.request.query_params.get('price', None)
+#         if sort_price:
+#             if sort_price.lower() == 'asc':
+#                 queryset = queryset.order_by('price')
+#             elif sort_price.lower() == 'desc':
+#                 queryset = queryset.order_by('-price')
+
+#         # Filtering by destination name
+#         destination = self.request.query_params.get('destination', None)
+#         if destination:
+#             queryset = queryset.filter(destination__name__icontains=destination)  # Ensure this field exists
+
+#         return queryset
+
+
+
 
 class RestaurantViewSet(viewsets.ModelViewSet):
     queryset = Restaurant.objects.all()
     serializer_class = RestaurantSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:  # Allow normal users to view
+        if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         return [IsAdmin()]
-    
+
     def get_queryset(self):
         queryset = Restaurant.objects.all()
         
-        # Search by category, name, description
+        # Search by name or description (category removed)
         search = self.request.query_params.get('search', None)
         if search:
             queryset = queryset.filter(
-                Q(name__icontains=search) | Q(description__icontains=search) | Q(category__icontains=search)
+                Q(name__icontains=search) |
+                Q(description__icontains=search)
             )
 
-        # Filter by forks (similar to stars)
+        # Filter by forks
         forks = self.request.query_params.get('forks', None)
         if forks:
             queryset = queryset.filter(forks=forks)
 
-        # Sorting by price (asc or desc)
+        # Sort by price
         sort_price = self.request.query_params.get('price', None)
         if sort_price:
             if sort_price.lower() == 'asc':
@@ -99,10 +194,15 @@ class RestaurantViewSet(viewsets.ModelViewSet):
             elif sort_price.lower() == 'desc':
                 queryset = queryset.order_by('-price')
 
-        # Filtering by destination name
+        # Filter by destination name
         destination = self.request.query_params.get('destination', None)
         if destination:
-            queryset = queryset.filter(destination__name__icontains=destination)  # Ensure this field exists
+            queryset = queryset.filter(destination__name__icontains=destination)
+
+        # Filter by cuisine name (new!)
+        cuisine = self.request.query_params.get('cuisine', None)
+        if cuisine:
+            queryset = queryset.filter(cuisine__name__icontains=cuisine)
 
         return queryset
     
@@ -272,6 +372,58 @@ class GuestHouseViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(destination__name__icontains=destination)
 
         return queryset
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Custom create method to handle equipments.
+        """
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            # Handle the custom create logic in the serializer
+            self.perform_create(serializer)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Custom update method to handle equipments.
+        """
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def perform_create(self, serializer):
+        """
+        Custom create method to handle equipment assignment after saving guest house.
+        """
+        guest_house = serializer.save()
+        equipment_ids = self.request.data.get('equipments', [])  # Get the list of equipment IDs
+
+        for equipment_id in equipment_ids:
+            try:
+                # Get the equipment by ID
+                equipment = Equipment.objects.get(id=equipment_id)
+                guest_house.equipments.add(equipment)
+            except Equipment.DoesNotExist:
+                pass  # Handle if equipment doesn't exist, maybe return an error message or log it
+
+    def perform_update(self, serializer):
+        """
+        Custom update method to handle equipment assignment when updating guest house.
+        """
+        guest_house = serializer.save()
+        equipment_ids = self.request.data.get('equipments', [])
+        guest_house.equipments.clear()  # Clear existing equipment associations
+        for equipment_id in equipment_ids:
+            try:
+                equipment = Equipment.objects.get(id=equipment_id)
+                guest_house.equipments.add(equipment)
+            except Equipment.DoesNotExist:
+                pass  # Handle if equipment doesn't exist, maybe return an error message
     
 
     
